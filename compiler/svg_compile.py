@@ -681,6 +681,57 @@ def compile_svg(svg: str) -> list[list[int]]:
     return sort_contours(clean_contours(normalize(contours, viewbox)))
 
 
+def local_name_for(name: str) -> str:
+    return "_" + name
+
+
+def contour_lines(contours: list[list[int]], indent: str) -> list[str]:
+    lines: list[str] = []
+    for contour in contours:
+        points = ", ".join(str(value) for value in contour)
+        lines.append(f"{indent}{{ {points} }},")
+    return lines
+
+
+def type_union_lines(
+    type_name: str,
+    names: list[str],
+    comment: str,
+    chunk_size: int,
+) -> list[str]:
+    lines = [f"--- {comment}"]
+
+    if not names:
+        lines.append(f"export type {type_name} = never")
+        lines.append("")
+        return lines
+
+    if len(names) <= chunk_size:
+        lines.append(f"export type {type_name} =")
+        for name in names:
+            lines.append(f'    | "{name}"')
+        lines.append("")
+        return lines
+
+    parts: list[str] = []
+    for i in range(0, len(names), chunk_size):
+        chunk = names[i:i + chunk_size]
+        part_name = f"{type_name}Part{i // chunk_size}"
+        parts.append(part_name)
+
+        lines.append(f"type {part_name} =")
+        for name in chunk:
+            lines.append(f'    | "{name}"')
+        lines.append("")
+
+    lines.append(f"export type {type_name} =")
+    for part in parts:
+        lines.append(f"    | {part}")
+    lines.append("")
+
+    return lines
+
+
 def format_luau(icons: dict[str, list[list[int]]]) -> str:
     groups: dict[str, list[str]] = {}
     for name in sorted(icons):
@@ -706,41 +757,65 @@ def format_luau(icons: dict[str, list[list[int]]]) -> str:
         name for name in all_names if not name.endswith(FILLED_SUFFIX)
     )
 
-    lines.append("--- Base icon names, without any variant suffix.")
-    lines.append("export type IconName =")
-    for name in base_names:
-        lines.append(f'    | "{name}"')
-    lines.append("")
+    lines.extend(type_union_lines(
+        "IconName",
+        base_names,
+        "Base icon names, without any variant suffix.",
+        200,
+    ))
+    lines.extend(type_union_lines(
+        "IconNameFull",
+        all_names,
+        "Every key in the icon table, including variants.",
+        200,
+    ))
 
-    lines.append("--- Every key in the icon table, including variants.")
-    lines.append("export type IconNameFull =")
-    for name in all_names:
-        lines.append(f'    | "{name}"')
-    lines.append("")
+    shared = [(key, names) for key, names in groups.items() if len(names) > 1]
+    unique = [(key, names) for key, names in groups.items() if len(names) == 1]
 
-    local_names: dict[str, str] = {}
-    for key, names in groups.items():
-        local_name = names[0]
-        local_names[key] = local_name
+    CHUNK = 150
+    chunks: list[list[tuple[str, list[str]]]] = []
+    for i in range(0, len(shared), CHUNK):
+        chunks.append(shared[i:i + CHUNK])
 
-        lines.append(f"local {local_name} = {{")
-        for contour in icons[local_name]:
-            points = ", ".join(str(value) for value in contour)
-            lines.append(f"    {{ {points} }},")
-        lines.append("}")
+    for index, chunk in enumerate(chunks):
+        lines.append(f"local function shared{index}(icons: any): ()")
+
+        for key, names in chunk:
+            local_name = local_name_for(names[0])
+            lines.append(f"    local {local_name} = {{")
+            lines.extend(contour_lines(icons[names[0]], "        "))
+            lines.append("    }")
+
         lines.append("")
+
+        for key, names in chunk:
+            local_name = local_name_for(names[0])
+            for name in names:
+                lines.append(f"    icons[\"{name}\"] = {local_name}")
+
+        lines.append("end")
+        lines.append("")
+
+    lines.append("local icons: any = {")
+
+    for key, names in unique:
+        name = names[0]
+        lines.append(f"    [\"{name}\"] = {{")
+        lines.extend(contour_lines(icons[name], "        "))
+        lines.append("    },")
+
+    lines.append("}")
+    lines.append("")
+
+    for index, chunk in enumerate(chunks):
+        lines.append(f"shared{index}(icons)")
+    lines.append("")
 
     lines.append("return {")
     lines.append(f"    grid = {GRID},")
-    lines.append("    icons = {")
-
-    for key, names in groups.items():
-        local_name = local_names[key]
-        for name in names:
-            lines.append(f"        {name} = {local_name},")
-
-    lines.append("    },")
-    lines.append("}")
+    lines.append("    icons = icons :: any,")
+    lines.append("} :: IconData")
     lines.append("")
 
     return "\n".join(lines)

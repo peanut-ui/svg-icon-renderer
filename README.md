@@ -5,6 +5,9 @@ Render SVG icons in Roblox. For real this time.
 You give it SVGs, it gives you crisp icons at any size, with no uploads, no
 asset IDs, and no waiting on Roblox to load a PNG.
 
+**Includes Material Symbols support** — Google's full icon set, rendered at
+runtime. No font hacks, no 7000 PNGs.
+
 ---
 
 ## Quick start
