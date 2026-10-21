@@ -70,7 +70,7 @@ It uses a scanline fill with the non-zero winding rule:
 - Buckets edges by the row they start on (a flat counting sort, no `table.sort`
   on edge records)
 - Walks each row, tracks winding, and fills spans where winding is non-zero
-- Supersamples 3x and averages down, so edges come out antialiased
+- Supersamples 4x and averages down, so edges come out antialiased
 
 `IconRenderer.luau` is the front end. It owns the cache, hands work to the
 Actor, and writes finished pixels into `EditableImage`s.

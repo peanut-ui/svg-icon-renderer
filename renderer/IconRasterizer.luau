@@ -3,7 +3,7 @@
 --!optimize 2
 local Rasterizer = {}
 
-local SUPERSAMPLE = 3
+local SUPERSAMPLE = 4
 
 local alphaScratch: buffer? = nil
 local alphaScratchSize = 0
