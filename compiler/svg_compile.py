@@ -659,14 +659,20 @@ def sort_contours(contours: list[list[int]]) -> list[list[int]]:
 
 def parse_viewbox(svg: str) -> tuple[float, float, float, float]:
     match = re.search(r'viewBox="([^"]+)"', svg)
-    if not match:
-        return DEFAULT_VIEWBOX
+    if match:
+        parts = parse_numbers(match.group(1))
+        if len(parts) == 4 and parts[2] > 0 and parts[3] > 0:
+            return (parts[0], parts[1], parts[2], parts[3])
 
-    parts = parse_numbers(match.group(1))
-    if len(parts) != 4 or parts[2] <= 0 or parts[3] <= 0:
-        return DEFAULT_VIEWBOX
+    width = re.search(r'\bwidth="([\d.]+)"', svg)
+    height = re.search(r'\bheight="([\d.]+)"', svg)
+    if width and height:
+        w = float(width.group(1))
+        h = float(height.group(1))
+        if w > 0 and h > 0:
+            return (0.0, 0.0, w, h)
 
-    return (parts[0], parts[1], parts[2], parts[3])
+    return DEFAULT_VIEWBOX
 
 
 def compile_svg(svg: str) -> list[list[int]]:
