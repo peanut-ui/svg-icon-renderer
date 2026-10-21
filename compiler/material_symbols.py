@@ -37,6 +37,7 @@ METADATA_URL = (
 THREADS = 32
 
 WANTED = [
+    # Navigation
     "home",
     "menu",
     "search",
@@ -49,8 +50,68 @@ WANTED = [
     "expand_more",
     "expand_less",
     "more_vert",
-    "more_horiz",
+
+    # Actions
+    "add",
+    "remove",
+    "edit",
+    "delete",
+    "save",
+    "check",
+    "content_copy",
+    "share",
+    "download",
+    "upload",
+    "send",
+    "filter_list",
+    "sort",
     "refresh",
+
+    # Status
+    "info",
+    "warning",
+    "error",
+    "help",
+    "check_circle",
+    "cancel",
+    "notifications",
+    "star",
+    "favorite",
+    "visibility",
+    "visibility_off",
+    "lock",
+
+    # People
+    "person",
+    "group",
+    "account_circle",
+    "chat",
+    "mail",
+    "call",
+
+    # Media
+    "play_arrow",
+    "pause",
+    "volume_up",
+    "volume_off",
+    "image",
+    "videocam",
+
+    # Files
+    "folder",
+    "description",
+    "cloud",
+    "cloud_upload",
+    "cloud_download",
+    "code",
+
+    # Misc
+    "dashboard",
+    "grid_view",
+    "list",
+    "calendar_today",
+    "schedule",
+    "lightbulb",
 ]
 
 icons: list[str] = []

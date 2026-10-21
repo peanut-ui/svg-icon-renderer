@@ -7,6 +7,28 @@ asset IDs, and no waiting on Roblox to load a PNG.
 
 ---
 
+## Quick start
+
+If you just want icons and don't care about the compiler, this is the whole
+thing:
+
+1. Copy the `renderer/` folder into `ReplicatedStorage`
+2. Use it
+
+```lua
+local IconRenderer = require(ReplicatedStorage.renderer.IconRenderer)
+
+local image = IconRenderer.request("home", 32)
+imageLabel.ImageContent = Content.fromObject(image)
+```
+
+The repo ships with a pre-compiled set of ~60 common UI icons, so there's
+nothing to build. See [Included icons](#included-icons) for the full list.
+
+If you want your own icons, jump to [Install](#install).
+
+---
+
 ## The problem
 
 Roblox has no vector graphics. If you want icons you usually end up doing one of
@@ -305,6 +327,54 @@ Being honest about what this doesn't do:
   off-thread benefit there.
 - **Cache is per-size.** A 24px and a 32px version of the same icon are separate
   entries.
+
+---
+
+## Included icons
+
+The repo ships with these pre-compiled, each in both regular and filled:
+
+<details>
+<summary><b>Click to see all 62 icon names</b></summary>
+
+**Navigation**
+
+`home` `menu` `search` `settings` `close` `arrow_back` `arrow_forward`
+`chevron_left` `chevron_right` `expand_more` `expand_less` `more_vert`
+
+**Actions**
+
+`add` `remove` `edit` `delete` `save` `check` `content_copy` `share`
+`download` `upload` `send` `filter_list` `sort` `refresh`
+
+**Status**
+
+`info` `warning` `error` `help` `check_circle` `cancel` `notifications`
+`star` `favorite` `visibility` `visibility_off` `lock`
+
+**People**
+
+`person` `group` `account_circle` `chat` `mail` `call`
+
+**Media**
+
+`play_arrow` `pause` `volume_up` `volume_off` `image` `videocam`
+
+**Files**
+
+`folder` `description` `cloud` `cloud_upload` `cloud_download` `code`
+
+**Misc**
+
+`dashboard` `grid_view` `list` `calendar_today` `schedule` `lightbulb`
+
+</details>
+
+Every name also has a `_filled` variant, so `home` and `home_filled` both work.
+
+Want more? Add names to `WANTED` in `compiler/material_symbols.py` and re-run it.
+Any Material Symbol works — grab the snake_case name from
+[fonts.google.com/icons](https://fonts.google.com/icons).
 
 ---
 
