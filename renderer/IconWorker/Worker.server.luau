@@ -4,7 +4,9 @@
 local Icons = require(script.Parent.Parent.Icons)
 local Rasterizer = require(script.Parent.Parent.IconRasterizer)
 
-local iconTable = (Icons :: any).icons :: { [string]: { { number } } }
+type Icon = { contours: { { number } }, fillRule: string? }
+
+local iconTable = (Icons :: any).icons :: { [string]: Icon }
 local grid = (Icons :: any).grid :: number
 
 local actor = script:GetActor()
@@ -17,12 +19,17 @@ local resultEvent = script.Parent:WaitForChild("Result") :: BindableEvent
 resultEvent:Fire("__ready")
 
 actor:BindToMessageParallel("rasterize", function(name: string, size: number, key: string)
-    local contours = iconTable[name]
-    if not contours then
+    local icon = iconTable[name]
+    if not icon then
         return
     end
 
-    local pixels = Rasterizer.rasterize(contours, size, grid)
+    local pixels = Rasterizer.rasterize(
+        icon.contours,
+        size,
+        grid,
+        icon.fillRule == "evenodd"
+    )
 
     task.synchronize()
     resultEvent:Fire(key, pixels)

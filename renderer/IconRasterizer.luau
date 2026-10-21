@@ -53,7 +53,12 @@ local function getOutX(hi: number): { number }
     return table_
 end
 
-function Rasterizer.rasterize(contours: { { number } }, size: number, grid: number): buffer
+function Rasterizer.rasterize(
+    contours: { { number } },
+    size: number,
+    grid: number,
+    evenOdd: boolean?
+): buffer
     local hi = size * SUPERSAMPLE
     local scale = hi / grid
 
@@ -199,7 +204,9 @@ function Rasterizer.rasterize(contours: { { number } }, size: number, grid: numb
             local crossing = sorted[i]
             winding += crossing.dir
 
-            if winding ~= 0 then
+            local inside = if evenOdd then winding % 2 ~= 0 else winding ~= 0
+
+            if inside then
                 if spanStart == nil then
                     spanStart = crossing.x
                 end

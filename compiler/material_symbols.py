@@ -233,7 +233,7 @@ def fetch_all_icon_names() -> list[str]:
 
 
 def compile_icons() -> int:
-    compiled: dict[str, list[list[int]]] = {}
+    compiled: dict[str, tuple[list[list[int]], str]] = {}
     failures = 0
 
     for name in icons:

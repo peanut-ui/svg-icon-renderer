@@ -221,9 +221,10 @@ def shape_to_path(tag: str, attrs: dict[str, str]) -> str:
     return ""
 
 
-def extract_contours(svg: str) -> list[list[tuple[float, float]]]:
+def extract_contours(svg: str) -> tuple[list[list[tuple[float, float]]], str]:
     contours: list[list[tuple[float, float]]] = []
     stack: list[Matrix] = [IDENTITY]
+    fill_rule = "nonzero"
 
     for match in TAG_RE.finditer(svg):
         closing = match.group(1) == "/"
@@ -250,12 +251,15 @@ def extract_contours(svg: str) -> list[list[tuple[float, float]]]:
             if not d:
                 continue
 
+            if attrs.get("fill-rule") == "evenodd":
+                fill_rule = "evenodd"
+
             for contour in parse_path(d):
                 contours.append(
                     [apply_matrix(current, point) for point in contour]
                 )
 
-    return contours
+    return contours, fill_rule
 
 
 def flatten_quadratic(
@@ -675,10 +679,11 @@ def parse_viewbox(svg: str) -> tuple[float, float, float, float]:
     return DEFAULT_VIEWBOX
 
 
-def compile_svg(svg: str) -> list[list[int]]:
+def compile_svg(svg: str) -> tuple[list[list[int]], str]:
     viewbox = parse_viewbox(svg)
-    contours = extract_contours(svg)
-    return sort_contours(clean_contours(normalize(contours, viewbox)))
+    contours, fill_rule = extract_contours(svg)
+    cleaned = sort_contours(clean_contours(normalize(contours, viewbox)))
+    return cleaned, fill_rule
 
 
 def local_name_for(name: str) -> str:
@@ -732,7 +737,7 @@ def type_union_lines(
     return lines
 
 
-def format_luau(icons: dict[str, list[list[int]]]) -> str:
+def format_luau(icons: dict[str, tuple[list[list[int]], str]]) -> str:
     groups: dict[str, list[str]] = {}
     for name in sorted(icons):
         key = repr(icons[name])
@@ -745,9 +750,14 @@ def format_luau(icons: dict[str, list[list[int]]]) -> str:
         "",
         "export type Contour = { number }",
         "",
+        "export type Icon = {",
+        "    contours: { Contour },",
+        "    fillRule: \"nonzero\" | \"evenodd\"?,",
+        "}",
+        "",
         "export type IconData = {",
         "    grid: number,",
-        "    icons: { [string]: { Contour } },",
+        "    icons: { [string]: Icon },",
         "}",
         "",
     ]
@@ -773,6 +783,15 @@ def format_luau(icons: dict[str, list[list[int]]]) -> str:
     shared = [(key, names) for key, names in groups.items() if len(names) > 1]
     unique = [(key, names) for key, names in groups.items() if len(names) == 1]
 
+    def icon_lines(name: str, indent: str) -> list[str]:
+        contours, fill_rule = icons[name]
+        out = [f"{indent}contours = {{"]
+        out.extend(contour_lines(contours, indent + "    "))
+        out.append(f"{indent}}},")
+        if fill_rule != "nonzero":
+            out.append(f'{indent}fillRule = "{fill_rule}",')
+        return out
+
     CHUNK = 150
     chunks: list[list[tuple[str, list[str]]]] = []
     for i in range(0, len(shared), CHUNK):
@@ -784,7 +803,7 @@ def format_luau(icons: dict[str, list[list[int]]]) -> str:
         for key, names in chunk:
             local_name = local_name_for(names[0])
             lines.append(f"    local {local_name} = {{")
-            lines.extend(contour_lines(icons[names[0]], "        "))
+            lines.extend(icon_lines(names[0], "        "))
             lines.append("    }")
 
         lines.append("")
@@ -802,7 +821,7 @@ def format_luau(icons: dict[str, list[list[int]]]) -> str:
     for key, names in unique:
         name = names[0]
         lines.append(f"    [\"{name}\"] = {{")
-        lines.extend(contour_lines(icons[name], "        "))
+        lines.extend(icon_lines(name, "        "))
         lines.append("    },")
 
     lines.append("}")
@@ -821,12 +840,15 @@ def format_luau(icons: dict[str, list[list[int]]]) -> str:
     return "\n".join(lines)
 
 
-def compile_icon_file(path: str) -> list[list[int]]:
+def compile_icon_file(path: str) -> tuple[list[list[int]], str]:
     with open(path, encoding="utf-8") as file:
         return compile_svg(file.read())
 
 
-def write_luau(icons: dict[str, list[list[int]]], dest: str) -> None:
+def write_luau(
+    icons: dict[str, tuple[list[list[int]], str]],
+    dest: str
+) -> None:
     with open(dest, "w", encoding="utf-8") as file:
         file.write(format_luau(icons))
 

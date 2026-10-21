@@ -19,8 +19,10 @@ def find_svgs(root: str) -> list[str]:
     return paths
 
 
-def compile_dir(root: str) -> tuple[dict[str, list[list[int]]], int]:
-    compiled: dict[str, list[list[int]]] = {}
+def compile_dir(
+    root: str
+) -> tuple[dict[str, tuple[list[list[int]], str]], int]:
+    compiled: dict[str, tuple[list[list[int]], str]] = {}
     failures = 0
 
     for path in find_svgs(root):

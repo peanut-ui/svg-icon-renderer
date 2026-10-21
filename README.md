@@ -89,12 +89,13 @@ Output is a Luau module with the contours plus a `grid` value.
 `IconRasterizer.luau` is the actual rasterizer. It's pure math — no Instances, no
 `EditableImage`, nothing that would stop it running in parallel.
 
-It uses a scanline fill with the non-zero winding rule:
+It uses a scanline fill with the non-zero winding rule by default, and switches
+to even-odd when the SVG asks for it:
 
 - Builds an edge list from the contours
 - Buckets edges by the row they start on (a flat counting sort, no `table.sort`
   on edge records)
-- Walks each row, tracks winding, and fills spans where winding is non-zero
+- Walks each row, tracks winding, and fills spans where the rule says "inside"
 - Supersamples 4x and averages down, so edges come out antialiased
 
 `IconRenderer.luau` is the front end. It owns the cache, hands work to the
@@ -307,12 +308,13 @@ Structure:
 
 - `<g>` — nested groups, transforms compose down the tree
 - `transform` — `translate`, `scale`, `rotate`, `matrix`, `skewX`, `skewY`
+- `fill-rule` — both `nonzero` and `evenodd`
 - Any `viewBox` — the compiler reads it and normalizes to a fixed grid, so
   `0 0 24 24`, `0 -960 960 960`, and non-square boxes all work
 
-Holes work the way SVG does it: a single path with an inner contour wound the
-opposite direction. Two separate `<circle>` elements are a union, not a donut —
-that's correct SVG behavior, not a bug.
+Holes work the way SVG does it. Either wind the inner contour the opposite
+direction (non-zero), or set `fill-rule="evenodd"` and let the renderer figure
+it out. Both are supported.
 
 ---
 
@@ -324,7 +326,6 @@ Being honest about what this doesn't do:
   which is a whole thing (offset curves, joins, caps). Not happening.
 - **No `<line>`.** It has no fill area, so there's nothing to rasterize.
 - **No `<use>`, `<defs>`, `<clipPath>`, `<mask>`.** No reference resolution.
-- **No fill rules other than non-zero.** Even-odd isn't implemented.
 - **No gradients or colors in the SVG.** Icons are rendered as a white mask and
   tinted with `ImageColor`.
 - **Actors don't work in Studio.** Falls back automatically, but you lose the
@@ -385,8 +386,8 @@ Any Material Symbol works — grab the snake_case name from
 ## Contributing
 
 If you know SVG well and want to take a crack at any of the above — especially
-`stroke` support or even-odd fill — I'd genuinely love that. Open an issue or a
-PR. Same goes for anything in the renderer.
+`stroke` support — I'd genuinely love that. Open an issue or a PR. Same goes for
+anything in the renderer.
 
 This started as a tool for one project, so there are probably edge cases I
 haven't hit. If you find one, tell me about it.

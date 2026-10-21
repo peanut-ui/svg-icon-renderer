@@ -6,7 +6,8 @@ const RunService = game:GetService("RunService")
 const Icons = require(script.Parent.Icons)
 const Rasterizer = require(script.Parent.IconRasterizer)
 
-type IconTable = { [string]: { { number } } }
+type Icon = { contours: { { number } }, fillRule: string? }
+type IconTable = { [string]: Icon }
 const iconTable = (Icons :: any).icons :: IconTable
 const GRID = (Icons :: any).grid :: number
 
@@ -34,8 +35,8 @@ local actorBusy = false
 local actorQueue: { Job } = {}
 local actorPending: { [string]: EditableImage } = {}
 
-local function keyFor(contours: { { number } }, size: number): string
-    return `{tostring(contours)}@{size}`
+local function keyFor(icon: Icon, size: number): string
+    return `{tostring(icon.contours)}@{size}`
 end
 
 local function touch(key: string)
@@ -85,18 +86,23 @@ local function createImage(size: number): EditableImage?
     })
 end
 
-local function rasterizeInto(contours: { { number } }, size: number, image: EditableImage)
-    local pixels = Rasterizer.rasterize(contours, size, GRID)
+local function rasterizeInto(icon: Icon, size: number, image: EditableImage)
+    local pixels = Rasterizer.rasterize(
+        icon.contours,
+        size,
+        GRID,
+        icon.fillRule == "evenodd"
+    )
     image:WritePixelsBuffer(Vector2.zero, Vector2.new(size, size), pixels)
 end
 
-local function rasterize(contours: { { number } }, size: number): EditableImage?
+local function rasterize(icon: Icon, size: number): EditableImage?
     local image = createImage(size)
     if not image then
         return nil
     end
 
-    rasterizeInto(contours, size, image)
+    rasterizeInto(icon, size, image)
     return image
 end
 
@@ -163,9 +169,9 @@ local function pump()
 
     pending[job.key] = nil
 
-    local contours = iconTable[job.name]
-    if contours then
-        rasterizeInto(contours, job.size, job.image)
+    local icon = iconTable[job.name]
+    if icon then
+        rasterizeInto(icon, job.size, job.image)
         store(job.key, job.image, job.size * job.size * 4)
     end
 end
@@ -219,19 +225,19 @@ end
 function IconRenderer.render(name: string, size: number): EditableImage?
     size = math.max(1, math.floor(size))
 
-    local contours = iconTable[name]
-    if not contours then
+    local icon = iconTable[name]
+    if not icon then
         return nil
     end
 
-    local key = keyFor(contours, size)
+    local key = keyFor(icon, size)
     local cached = cache[key]
     if cached then
         touch(key)
         return cached
     end
 
-    local image = rasterize(contours, size)
+    local image = rasterize(icon, size)
     if not image then
         return nil
     end
@@ -243,12 +249,12 @@ end
 function IconRenderer.request(name: string, size: number): EditableImage?
     size = math.max(1, math.floor(size))
 
-    local contours = iconTable[name]
-    if not contours then
+    local icon = iconTable[name]
+    if not icon then
         return nil
     end
 
-    local key = keyFor(contours, size)
+    local key = keyFor(icon, size)
     local cached = cache[key]
     if cached then
         touch(key)
