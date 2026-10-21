@@ -26,7 +26,32 @@ type Edge = {
     dir: number,
     slope: number,
     x: number,
+    row: number,
 }
+
+local SAMPLES = SUPERSAMPLE * SUPERSAMPLE
+local ALPHA_SCALE = 255 / SAMPLES
+local ALPHA_LUT = table.create(SAMPLES + 1) :: {number}
+for i = 0, SAMPLES do
+    ALPHA_LUT[i + 1] = math.floor(i * ALPHA_SCALE + 0.5)
+end
+
+local outXCaches: { [number]: { number } } = {}
+
+local function getOutX(hi: number): { number }
+    local cached = outXCaches[hi]
+    if cached then
+        return cached
+    end
+
+    local table_ = table.create(hi) :: {number}
+    for i = 0, hi - 1 do
+        table_[i + 1] = i // SUPERSAMPLE
+    end
+
+    outXCaches[hi] = table_
+    return table_
+end
 
 function Rasterizer.rasterize(contours: { { number } }, size: number, grid: number): buffer
     local hi = size * SUPERSAMPLE
@@ -45,16 +70,26 @@ function Rasterizer.rasterize(contours: { { number } }, size: number, grid: numb
             local y2 = contour[j + 1] * scale
 
             if y1 ~= y2 then
+                local yMin = math.min(y1, y2)
+                local yMax = math.max(y1, y2)
+                local row = math.ceil(yMin - 0.5)
+                if row < 0 then
+                    row = 0
+                elseif row > hi - 1 then
+                    row = -1
+                end
+
                 edges[#edges + 1] = {
                     x1 = x1,
                     y1 = y1,
                     x2 = x2,
                     y2 = y2,
-                    yMin = math.min(y1, y2),
-                    yMax = math.max(y1, y2),
+                    yMin = yMin,
+                    yMax = yMax,
                     dir = if y2 > y1 then 1 else -1,
                     slope = (x2 - x1) / (y2 - y1),
                     x = 0,
+                    row = row,
                 }
             end
 
@@ -69,13 +104,10 @@ function Rasterizer.rasterize(contours: { { number } }, size: number, grid: numb
     end
 
     for _, edge in edges do
-        local row = math.ceil(edge.yMin - 0.5)
-        if row < 0 then
-            row = 0
-        elseif row > hi - 1 then
+        if edge.row < 0 then
             continue
         end
-        starts[row + 1] += 1
+        starts[edge.row + 1] += 1
     end
 
     local placed = 0
@@ -92,14 +124,11 @@ function Rasterizer.rasterize(contours: { { number } }, size: number, grid: numb
     end
 
     for _, edge in edges do
-        local row = math.ceil(edge.yMin - 0.5)
-        if row < 0 then
-            row = 0
-        elseif row > hi - 1 then
+        if edge.row < 0 then
             continue
         end
-        local slot = cursor[row + 1] + 1
-        cursor[row + 1] = slot
+        local slot = cursor[edge.row + 1] + 1
+        cursor[edge.row + 1] = slot
         bucketEdges[slot] = edge
     end
 
@@ -109,11 +138,9 @@ function Rasterizer.rasterize(contours: { { number } }, size: number, grid: numb
     local coverage = getAlphaScratch(size * size)
     buffer.fill(coverage, 0, 0, size * size)
 
-    local samples = SUPERSAMPLE * SUPERSAMPLE
-    local alphaScale = 255 / samples
-
     local active = table.create(16) :: { Edge }
     local crossings = table.create(16) :: { { x: number, dir: number } }
+    local outX = getOutX(hi)
 
     for y = 0, hi - 1 do
         local sampleY = y + 0.5
@@ -181,10 +208,9 @@ function Rasterizer.rasterize(contours: { { number } }, size: number, grid: numb
                 local to = math.min(hi - 1, math.ceil(crossing.x) - 1)
 
                 for px = from, to do
-                    local outX = px // SUPERSAMPLE
-                    local index = outRow + outX
+                    local index = outRow + outX[px + 1]
                     local current = buffer.readu8(coverage, index)
-                    if current < 255 then
+                    if current < SAMPLES then
                         buffer.writeu8(coverage, index, current + 1)
                     end
                 end
@@ -197,7 +223,7 @@ function Rasterizer.rasterize(contours: { { number } }, size: number, grid: numb
     local total = size * size
     for i = 0, total - 1 do
         local value = buffer.readu8(coverage, i)
-        buffer.writeu8(pixels, i * 4 + 3, math.floor(value * alphaScale + 0.5))
+        buffer.writeu8(pixels, i * 4 + 3, ALPHA_LUT[value + 1])
     end
 
     return pixels
