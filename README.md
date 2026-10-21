@@ -133,6 +133,7 @@ files:
 
 ```
 renderer/
+  Icons.luau              <- the pre-compiled icon set
   IconRasterizer.luau
   IconRenderer.luau
   IconWorker/
@@ -220,7 +221,7 @@ IconRenderer.render(name, size)        -- synchronous, blocks until done
 IconRenderer.names()                   -- every compiled icon name
 IconRenderer.has(name)                 -- is this icon compiled?
 IconRenderer.setCacheBudget(bytes)     -- default 12 MiB
-IconRenderer.setFrameBudget(seconds)   -- fallback pump budget
+IconRenderer.setFrameBudget(seconds)   -- fallback pump budget (Actor path ignores it)
 IconRenderer.cacheStats()              -- entries, bytes used, budget
 IconRenderer.queueDepth()              -- pending jobs
 IconRenderer.clearCache()              -- destroy everything
@@ -258,7 +259,7 @@ You don't have to configure anything. It figures it out.
 
 ## Performance
 
-Numbers from a 256x256 gradient and a set of ~180 icons at 32px:
+Numbers from a set of ~180 icons at 32px:
 
 | | |
 |---|---|
